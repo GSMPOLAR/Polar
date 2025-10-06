@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Polar IMEI Gen</title>
+
+  <!-- Tailwind -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#000000">
+  
+  <style>
+    body {
+      background-image: url('fondo.jpg'); /* tu imagen del oso */
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      backdrop-filter: blur(8px);
+    }
+
+    .glass-card {
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 0 20px rgba(255,255,255,0.05);
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center">
+  <div class="container mx-auto py-16 px-4">
+    <div class="max-w-md mx-auto glass-card rounded-2xl p-6">
+      <h1 class="text-3xl font-bold text-white text-center mb-4 drop-shadow-lg">
+        POLAR IMEI GEN
+      </h1>
+      
+      <div class="flex flex-col items-center">
+        <!-- Marca -->
+        <label for="marca" class="text-white mb-2 text-center">Marca:</label>
+        <select id="marca" class="border border-gray-700 bg-gray-900 text-white px-4 py-2 rounded-md w-full md:max-w-xs">
+          <option value="">Seleccione una marca</option>
+          <option value="Samsung">Samsung</option>
+          <option value="Xiaomi">Xiaomi</option>
+          <option value="Motorola">Motorola</option>
+          <option value="ZTE">ZTE</option>
+          <option value="Honor">Honor</option>
+          <option value="Oppo">Oppo</option>
+        </select>
+
+        <!-- Modelo -->
+        <label for="modelo" class="text-white mt-4 mb-2 text-center">Modelo:</label>
+        <select id="modelo" class="border border-gray-700 bg-gray-900 text-white px-4 py-2 rounded-md w-full md:max-w-xs" disabled>
+          <option value="">Seleccione un modelo</option>
+        </select>
+
+        <!-- TAC -->
+        <label for="tac" class="text-white mt-4 mb-2 text-center">TAC (Primeros 8 dígitos IMEI):</label>
+        <input type="text" id="tac" class="border border-gray-700 bg-gray-900 text-white px-4 py-2 rounded-md w-full md:max-w-xs text-center" placeholder="TAC automático" maxlength="8">
+
+        <!-- Cantidad -->
+        <label class="text-white mt-4 mb-2 text-center">Cantidad:</label>
+        <input type="number" id="cantidad" class="border border-gray-700 bg-gray-900 text-white px-4 py-2 rounded-md w-full md:max-w-xs" min="1" max="100" value="10">
+
+        <!-- Botones -->
+        <button id="generar" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-4 w-full md:max-w-xs shadow-md">
+          Generar IMEI
+        </button>
+
+        <div id="resultados" class="mt-4 text-white w-full bg-gray-800 bg-opacity-70 p-4 rounded-md overflow-y-auto" style="max-height: 150px;"></div>
+
+        <button id="copiar" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mt-4 w-full md:max-w-xs shadow-md">
+          Copiar IMEI
+        </button>
+        
+        <button id="descargar" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded mt-4 w-full md:max-w-xs shadow-md">
+          Descargar .txt
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 📱 Base de datos de modelos y TAC
+    const modelosPorMarca = {
+      "Samsung": {
+        "Galaxy A04": "35241048",
+        "Galaxy A05": "",
+        "Galaxy A06": "35338483",
+        "Galaxy A127M": "35300056",
+        "Galaxy A125M": "35845329",
+        "Galaxy A145M": "35570931",
+        "Galaxy A145M.": "35698665",
+        "Galaxy A145M..": "35516330",
+        "Galaxy A217M": "35695484",
+        "Galaxy A22 5G": "35805538",
+        "Galaxy A30S": "35504911",
+        "Galaxy A31": "35587511",
+        "Galaxy A31.": "35590111",
+        "Galaxy A31..": "35710909",
+        "Galaxy A32": "",
+        "Galaxy A33": "35117439",
+        "Galaxy A34": "35643020",
+        "Galaxy A35": "",
+        "Galaxy A50": "35671110",
+        "Galaxy A54": "35979745",
+        "Galaxy A54.": "35096263"
+      },
+      "Xiaomi": {
+        "Redmi Note 10S": "86712705",
+        "Redmi 10 2022": "86861506",
+        "Redmi Note 9": "86787005",
+        "Redmi Note 11": "86032006",
+        "Redmi Note 12": "86173606"
+      },
+      "Motorola": {
+        "G20": "35216143",
+        "G22": "35468681",
+        "E22I": "35132038",
+        "E22": "35568986"
+      },
+      "ZTE": {
+        "Blade A34": "86778006",
+        "Blade V50 Vita": "86770906"
+      },
+      "Honor": {
+        "X5B": "86070306",
+        "X6": "86280006",
+        "X6.": "86550306",
+        "X6A": "86945206",
+        "X8A": "86097206",
+        "90 Lite": "86011507"
+      },
+      "Oppo": {
+        "A57": "86396503",
+        "A57.": "86516603",
+        "A57..": "86396603"
+      }
+    };
+
+    const marcaSelect = document.getElementById('marca');
+    const modeloSelect = document.getElementById('modelo');
+    const tacInput = document.getElementById('tac');
+    const generarBtn = document.getElementById('generar');
+    const copiarBtn = document.getElementById('copiar');
+    const descargarBtn = document.getElementById('descargar');
+    const resultadosDiv = document.getElementById('resultados');
+
+    // Cambia los modelos según la marca
+    marcaSelect.addEventListener('change', () => {
+      const marca = marcaSelect.value;
+      modeloSelect.innerHTML = '<option value="">Seleccione un modelo</option>';
+      modeloSelect.disabled = !marca;
+      tacInput.value = "";
+
+      if (marca && modelosPorMarca[marca]) {
+        Object.keys(modelosPorMarca[marca]).forEach(modelo => {
+          const opt = document.createElement('option');
+          opt.value = modelo;
+          opt.textContent = modelo;
+          modeloSelect.appendChild(opt);
+        });
+      }
+    });
+
+    // Autocompleta el TAC al seleccionar el modelo
+    modeloSelect.addEventListener('change', () => {
+      const marca = marcaSelect.value;
+      const modelo = modeloSelect.value;
+      if (marca && modelo && modelosPorMarca[marca][modelo]) {
+        tacInput.value = modelosPorMarca[marca][modelo];
+      } else {
+        tacInput.value = "";
+      }
+    });
+
+    // Algoritmo de Luhn
+    function calcularChecksum(imei) {
+      let suma = 0;
+      for (let i = 0; i < imei.length; i++) {
+        let num = parseInt(imei[i]);
+        if (i % 2 !== 0) {
+          num *= 2;
+          if (num > 9) num -= 9;
+        }
+        suma += num;
+      }
+      return (10 - (suma % 10)) % 10;
+    }
+
+    // Generar IMEIs
+    generarBtn.addEventListener('click', () => {
+      const marca = marcaSelect.value;
+      const modelo = modeloSelect.value;
+      const tac = tacInput.value.trim();
+      const cantidad = parseInt(document.getElementById('cantidad').value) || 10;
+
+      if (!marca || !modelo) {
+        resultadosDiv.innerHTML = '<p class="text-red-400">Seleccione marca y modelo.</p>';
+        return;
+      }
+      if (!tac || tac.length !== 8 || isNaN(tac)) {
+        resultadosDiv.innerHTML = '<p class="text-red-400">TAC inválido.</p>';
+        return;
+      }
+
+      const resultados = [];
+      for (let i = 0; i < cantidad; i++) {
+        const snr = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+        const imeiSinChecksum = tac + snr;
+        const checksum = calcularChecksum(imeiSinChecksum);
+        resultados.push(`${marca} ${modelo}: ${imeiSinChecksum + checksum}`);
+      }
+      resultadosDiv.innerHTML = resultados.join('<br>');
+    });
+
+    // Copiar
+    copiarBtn.addEventListener('click', () => {
+      const text = resultadosDiv.innerText;
+      if (!text) return alert('No hay IMEIs para copiar');
+      navigator.clipboard.writeText(text).then(() => alert('IMEIs copiados al portapapeles'));
+    });
+
+    // Descargar TXT
+    descargarBtn.addEventListener('click', () => {
+      const contenido = resultadosDiv.innerText;
+      if (!contenido) return alert('No hay IMEIs generados.');
+      const blob = new Blob([contenido], { type: 'text/plain' });
+      const enlace = document.createElement('a');
+      enlace.href = URL.createObjectURL(blob);
+      enlace.download = 'polar_imeis.txt';
+      enlace.click();
+    });
+  </script>
+  <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js')
+      .then(() => console.log('✅ Service Worker registrado correctamente'))
+      .catch(error => console.log('❌ Error al registrar Service Worker:', error));
+  }
+  <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js')
+      .then(() => console.log('✅ Service Worker registrado correctamente'))
+      .catch(error => console.log('❌ Error al registrar Service Worker:', error));
+  }
+</script>
+</body>
+</html>
